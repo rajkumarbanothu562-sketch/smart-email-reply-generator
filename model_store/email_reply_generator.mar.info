@@ -1,0 +1,4 @@
+TorchServe Model Archive Spec: email_reply_generator
+Model: distilgpt2
+Handler: C:\Users\rajku\.gemini\antigravity\scratch\smart-email-reply-generator\serve\handler.py
+Archive Command: torch-model-archiver --model-name email_reply_generator --version 1.0 --handler C:\Users\rajku\.gemini\antigravity\scratch\smart-email-reply-generator\serve\handler.py --export-path C:\Users\rajku\.gemini\antigravity\scratch\smart-email-reply-generator\model_store -f

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Email Reply Generator | DistilGPT2 + TorchServe + SageMaker</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-group">
+                <span class="logo-icon">✉️</span>
+                <div>
+                    <h1>Smart Email Reply Generator</h1>
+                    <p class="subtitle">NLP Text-Generation Application powered by DistilGPT2, TorchServe & Amazon SageMaker</p>
+                </div>
+            </div>
+            <div class="badges-group">
+                <span class="badge badge-purple">DistilGPT2</span>
+                <span class="badge badge-orange">PyTorch</span>
+                <span class="badge badge-blue">TorchServe</span>
+                <span class="badge badge-yellow">AWS SageMaker</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="disclaimer-banner">
+        <div class="disclaimer-content">
+            <span class="disclaimer-icon">⚠️</span>
+            <div>
+                <strong>DRAFT ASSISTANT ONLY:</strong>
+                All generated replies are suggestions strictly labelled as drafts. The user must review, edit, and approve drafts. 
+                <em>This application does not send emails automatically.</em>
+            </div>
+        </div>
+    </div>
+
+    <main class="main-container">
+        <div class="grid-layout">
+            <!-- Left Column: Input and Configuration -->
+            <section class="card input-card">
+                <div class="card-header">
+                    <h2>1. Email Context & Tone</h2>
+                    <span class="step-pill">Step 1</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="sampleSituations">Load Sample Test Scenario</label>
+                    <select id="sampleSituations" class="form-select">
+                        <option value="">-- Choose a predefined scenario --</option>
+                        <optgroup label="Formal Scenarios">
+                            <option value="formal_leave">Requesting leave for one day (Formal)</option>
+                            <option value="formal_extension">Requesting assignment extension (Formal)</option>
+                            <option value="formal_job">Inquiring about job application status (Formal)</option>
+                            <option value="formal_decline">Declining vendor sales pitch (Formal)</option>
+                            <option value="formal_report">Submitting project status report (Formal)</option>
+                        </optgroup>
+                        <optgroup label="Friendly Scenarios">
+                            <option value="friendly_meeting">Unable to attend tomorrow's meeting (Friendly)</option>
+                            <option value="friendly_thanks">Thanking a colleague for help (Friendly)</option>
+                            <option value="friendly_coffee">Inviting teammate for a coffee break (Friendly)</option>
+                            <option value="friendly_notes">Sharing conference notes (Friendly)</option>
+                            <option value="friendly_promo">Congratulating teammate on promotion (Friendly)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <div class="label-with-counter">
+                        <label for="emailContext">Email Situation or Incoming Message <span class="required">*</span></label>
+                        <span id="charCounter" class="char-counter">0 / 1000</span>
+                    </div>
+                    <textarea 
+                        id="emailContext" 
+                        class="form-textarea" 
+                        rows="4" 
+                        placeholder="e.g., I cannot attend tomorrow's meeting because I have a doctor's appointment."
+                    ></textarea>
+                    <span class="field-hint">Enter the situation, incoming email excerpt, or context to respond to.</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Desired Tone <span class="required">*</span></label>
+                    <div class="tone-selector">
+                        <label class="tone-option">
+                            <input type="radio" name="tone" value="formal" checked>
+                            <div class="tone-box">
+                                <span class="tone-emoji">👔</span>
+                                <div class="tone-text">
+                                    <strong>Formal</strong>
+                                    <span>Professional, polite, respectful</span>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="tone-option">
+                            <input type="radio" name="tone" value="friendly">
+                            <div class="tone-box">
+                                <span class="tone-emoji">😊</span>
+                                <div class="tone-text">
+                                    <strong>Friendly</strong>
+                                    <span>Warm, conversational, cordial</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="backendSelector">Inference Backend</label>
+                    <select id="backendSelector" class="form-select">
+                        <option value="local">⚡ PyTorch Direct (In-Memory Engine)</option>
+                        <option value="torchserve">📦 TorchServe Service (/predictions/email_reply_generator)</option>
+                        <option value="sagemaker">☁️ Amazon SageMaker Endpoint</option>
+                    </select>
+                    <span class="field-hint">Select the serving architecture to execute the inference request.</span>
+                </div>
+
+                <!-- Collapsible Settings -->
+                <details class="settings-accordion">
+                    <summary>Generation Hyperparameters (Advanced)</summary>
+                    <div class="settings-body">
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <label for="temperatureSlider">Temperature: <span id="tempVal">0.70</span></label>
+                            </div>
+                            <input type="range" id="temperatureSlider" min="0.1" max="1.5" step="0.05" value="0.7">
+                            <span class="slider-caption">Controls creativity vs determinism. Lower is more predictable.</span>
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <label for="maxTokensSlider">Max New Tokens: <span id="tokensVal">80</span></label>
+                            </div>
+                            <input type="range" id="maxTokensSlider" min="30" max="160" step="10" value="80">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Prompt Inspector Accordion (Addresses Report Question 7) -->
+                <details class="settings-accordion" id="promptInspectorDetails">
+                    <summary>🔍 Prompt Inspector (Live Tone-Conditioned Template)</summary>
+                    <div class="settings-body">
+                        <p class="inspector-desc">
+                            Shows how the selected tone influences the prompt prefix sent to DistilGPT2:
+                        </p>
+                        <pre id="livePromptPreview" class="code-preview">Select a tone and type context to see the primed prompt...</pre>
+                    </div>
+                </details>
+
+                <div class="action-buttons">
+                    <button id="generateBtn" class="btn btn-primary">
+                        <span class="btn-icon">⚡</span> Generate Draft Reply
+                    </button>
+                    <button id="resetInputBtn" class="btn btn-secondary">
+                        <span class="btn-icon">🔄</span> Reset
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Column: Generated Reply and Review -->
+            <section class="card output-card">
+                <div class="card-header">
+                    <h2>2. Suggested Reply Draft</h2>
+                    <span class="draft-badge" id="draftBadge">DRAFT — REVIEW REQUIRED</span>
+                </div>
+
+                <div class="review-notice">
+                    <span class="notice-icon">📝</span>
+                    <p>
+                        Review and edit this draft in the text area below before copying or using. 
+                        <strong>No emails will be sent automatically.</strong>
+                    </p>
+                </div>
+
+                <div id="outputContainer" class="output-container">
+                    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                        <div class="spinner"></div>
+                        <p id="loadingStatusText">DistilGPT2 is generating your reply draft...</p>
+                    </div>
+
+                    <div id="resultBox" class="result-box">
+                        <div class="form-group">
+                            <label for="draftReplyEditor">Editable Draft Reply</label>
+                            <textarea 
+                                id="draftReplyEditor" 
+                                class="form-textarea draft-editor" 
+                                rows="10" 
+                                placeholder="Your generated draft email reply will appear here for review and editing..."
+                            ></textarea>
+                        </div>
+
+                        <div class="metrics-bar" id="metricsBar" style="display: none;">
+                            <span class="metric-pill">Backend: <strong id="metricBackend">-</strong></span>
+                            <span class="metric-pill">Tone: <strong id="metricTone">-</strong></span>
+                            <span class="metric-pill">Latency: <strong id="metricLatency">-</strong></span>
+                            <span class="metric-pill">Model: <strong>distilgpt2</strong></span>
+                        </div>
+
+                        <div class="action-buttons reply-actions">
+                            <button id="copyBtn" class="btn btn-success" disabled>
+                                <span class="btn-icon">📋</span> Copy Draft to Clipboard
+                            </button>
+                            <button id="clearDraftBtn" class="btn btn-secondary" disabled>
+                                <span class="btn-icon">🗑️</span> Clear Draft
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Predefined Test Cases & Comparison Table Section -->
+        <section class="card comparison-card">
+            <div class="card-header">
+                <div>
+                    <h2>Test Cases & Tone Comparison Analysis</h2>
+                    <p class="subtitle">5 Formal and 5 Friendly benchmarks evaluated on DistilGPT2</p>
+                </div>
+                <div class="table-actions">
+                    <button id="runAllTestsBtn" class="btn btn-outline">
+                        <span class="btn-icon">▶️</span> Run Live Test Suite
+                    </button>
+                    <div class="filter-group">
+                        <label for="tableFilter">Filter Tone:</label>
+                        <select id="tableFilter" class="form-select select-sm">
+                            <option value="all">All (10 Cases)</option>
+                            <option value="Formal">Formal (5 Cases)</option>
+                            <option value="Friendly">Friendly (5 Cases)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="comparison-table" id="comparisonTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email Situation</th>
+                            <th>Tone</th>
+                            <th>Expected Behavior</th>
+                            <th>Generated Reply Draft</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <div class="footer-container">
+            <p>Smart Email Reply Generator &bull; NLP Project 2 &bull; PyTorch + DistilGPT2 + TorchServe + Amazon SageMaker</p>
+            <p class="footer-sub">Generates suggested drafts only. Complies with human-in-the-loop email safety standards.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
